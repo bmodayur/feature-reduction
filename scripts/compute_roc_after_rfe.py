@@ -8,9 +8,9 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.15.2
 #   kernelspec:
-#     display_name: conda-caffe
+#     display_name: Python 3 (ipykernel)
 #     language: python
-#     name: conda-caffe
+#     name: python3
 # ---
 
 # %%
@@ -48,8 +48,6 @@ def create_train_test(features, samples, age_threshold):
 
 # %%
 
-output_dir = '/BigData/emcp_test_30s/output_files_yt_clin_emcp_merged'
-output_dir = '/BigData/EMCP_BACKUP/mp4test/output_files'
 output_dir = '/BigData/EMCP_BACKUP/output/'
 FEATURE_SIZE = 20 # number of features to use through RFE (recursive feature elimination)
 AGE_THRESHOLD = 10 #age threshold in weeks
@@ -141,21 +139,13 @@ f = pd.concat([f, age_rows], ignore_index=True)
 f
 
 # %%
-f.feature.unique()
-
-# %%
-f.infant.unique().shape
-
-# %%
-# Move SAMPLES from EMMA and YT (normative) dataset with risk=1
-# threshold age bracket (at 6 months)
-features = create_train_test(f, samples=SAMPLES, age_threshold=AGE_THRESHOLD)
+print(f"The 59 features we start with \n{f.feature.unique()}")
+print(f"\nMovement data from {f.infant.unique().shape[0]} unique infants")
 
 # %%
 # %%
 # USE PRE-SELECTED FEATURES (from RFE computed elsewhere)
-# Do NOT perform RFE in this script
-# All 6 feature sets from verified 10-fold cross-validation analysis (Nov 21, 2025)
+# All feature sets from verified 10-fold cross-validation analysis (Nov 21, 2025)
 
 # ============================================================================
 # NEW FEATURE SETS (Recommended for clinical use)
@@ -163,6 +153,11 @@ features = create_train_test(f, samples=SAMPLES, age_threshold=AGE_THRESHOLD)
 # NOTE: NEW feature sets fix critical bugs:
 #   - 60 FPS frame rate normalization ✅ FIXED
 #   - Coordinate system rotation correction ✅ FIXED
+#
+# These feature sets were all derived from slightly different versions of the source dataset
+# containing 140+ infants and 59 movement features plus the infant's age
+# The selected_features_20_new is the best model that optimizes the screener's performance metrics
+#
 
 # 15-Feature NEW: Simplified variant, good performance (AUC 0.7379)
 # Features: 14 movement + age
@@ -237,36 +232,6 @@ selected_features_20_new = [
     "age_in_weeks"
 ]
 
-# ============================================================================
-# 20-Feature RFE DEC 2025: VERIFIED PROVENANCE
-# ============================================================================
-# Generated: 2025-12-03 via scripts/run_rfe_with_age_forced.py
-# Data file: features_merged_20251121_091511.pkl (CORRECT data file)
-# Method: Enhanced Adaptive RFE (50 trials, 15-fold CV) → top 19 by RF importance + forced age
-# Single-split AUC: 0.830, Sensitivity: 85.7%, Specificity: 72.5%
-# NOTE: This set has VERIFIED provenance from traceable RFE run
-selected_features_20_rfe_dec2025 = [
-    "Hip_stdev_angle",       # importance: 0.1943
-    "Hip_mean_angle",        # importance: 0.0700
-    "Elbow_IQR_acc_angle",   # importance: 0.0610
-    "Hip_entropy_angle",     # importance: 0.0559
-    "Ankle_IQRaccy",         # importance: 0.0332
-    "Ankle_IQRaccx",         # importance: 0.0283
-    "Shoulder_IQR_acc_angle",# importance: 0.0282
-    "Ankle_medianvelx",      # importance: 0.0266
-    "Shoulder_lrCorr_angle", # importance: 0.0251
-    "Elbow_IQR_vel_angle",   # importance: 0.0216
-    "Ankle_meanent",         # importance: 0.0215
-    "Wrist_IQRaccx",         # importance: 0.0191
-    "Ankle_mediany",         # importance: 0.0176
-    "Ankle_IQRx",            # importance: 0.0173
-    "Shoulder_stdev_angle",  # importance: 0.0166
-    "Wrist_IQRvelx",         # importance: 0.0161
-    "Knee_lrCorr_angle",     # importance: 0.0158
-    "Ankle_IQRvely",         # importance: 0.0147
-    "Shoulder_mean_angle",   # importance: 0.0146
-    "age_in_weeks"           # FORCED inclusion
-]
 
 # ============================================================================
 # LEGACY FEATURE SETS (Reference only - contains known bugs)
@@ -344,6 +309,8 @@ selected_features_20_legacy = [
 ]
 
 # all 38 features
+# manually curated
+# from [Chambers2020, IEEE Transcactions on Neural Systems and Rehabilitation Engineering]
 all_38_features = ['Ankle_medianx','Wrist_medianx','Ankle_mediany','Wrist_mediany',
                 'Knee_mean_angle','Elbow_mean_angle',
                 'Ankle_IQRx', 'Wrist_IQRx','Ankle_IQRy', 'Wrist_IQRy',
@@ -2010,8 +1977,5 @@ if RUN_COMPARISON_MODE:
     comparison_df = pd.DataFrame(comparison_data)
     comparison_df.to_csv('transformation_comparison_metrics.csv', index=False)
     print(f"\nComparison results saved to: transformation_comparison_metrics.csv")
-
-# %%
-feature_sets.keys()
 
 # %%
