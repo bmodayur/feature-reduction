@@ -140,6 +140,81 @@ For users who want to **understand the current model results** or **reproduce sp
 - Specificity: 77.5%
 - See: `scripts/compute_roc_after_rfe.py`
 
+#### Pathway 2 Analysis Workflow
+
+The analysis scripts follow a 3-step pipeline to develop and validate an early screener:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Step 1: Feature Selection (RFE)                                        │
+│  run_rfe_with_age_forced.py → 20-feature set with forced age inclusion  │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Step 2: Screener Metrics (ROC)                                         │
+│  compute_roc_after_rfe.py → Se, Sp, AUC with k-fold CV                  │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Step 3: Sample Size Planning (BAM)                                     │
+│  run_bam_20feature_nov21.py → N infants needed for validation study     │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Step 1: Feature Selection** (`scripts/run_rfe_with_age_forced.py`)
+
+Reduces 59 features to 20 using Enhanced Adaptive RFE:
+- Runs RFE on 58 movement features (excluding `age_in_weeks`)
+- Selects top 19 by Random Forest importance
+- Forces `age_in_weeks` as 20th feature for age-adjusted modeling
+
+```bash
+# Run RFE (takes 30-60 minutes)
+PYTHONPATH=. python scripts/run_rfe_with_age_forced.py
+```
+
+**Output**: Feature list saved to `data/json/`, model saved to `data/pkl/`
+
+**Step 2: Screener Metrics** (`scripts/compute_roc_after_rfe.py`)
+
+Evaluates early screener performance using 10-fold cross-validation:
+- Computes Bayesian surprise z-scores for each infant
+- Calculates ROC metrics (sensitivity, specificity, AUC)
+- Applies 1/(1+|x|) transformation for bidirectional anomaly detection
+- Compares multiple feature sets (15, 18, 19, 20 features)
+
+```bash
+# Run ROC analysis (runs as Jupyter script or standalone)
+PYTHONPATH=. python scripts/compute_roc_after_rfe.py
+```
+
+**Output**:
+- `feature_set_comparison_metrics.csv` - Metrics for all feature sets
+- Console output with confusion matrices and CIs
+
+**Step 3: Sample Size Planning** (`scripts/run_bam_20feature_nov21.py`)
+
+Determines sample size for Phase 2 validation study:
+- Uses pilot metrics (Se=92.1%, Sp=77.5%) as priors
+- Calculates N for target CI width (±10%) and assurance (95%)
+- Runs sensitivity analysis across precision levels
+
+```bash
+# Run BAM sample size calculation
+PYTHONPATH=. python scripts/run_bam_20feature_nov21.py
+```
+
+**Output**: `data/json/bam_sample_size_20feature_nov21.json`
+
+#### Key Analysis Results
+
+| Metric | Value | Description |
+|--------|-------|-------------|
+| **Features** | 20 | 19 movement + age_in_weeks |
+| **AUC** | 0.902 | Area under ROC curve |
+| **Sensitivity** | 92.1% | True positive rate (at-risk detection) |
+| **Specificity** | 77.5% | True negative rate (typical identification) |
+| **Sample Size** | N=100 | For CI width 0.20, assurance 95% |
+| **Recommendation** | N=150-200 | Conservative estimate with buffers |
+
+For detailed BAM analysis including enriched sampling design, see [docs/BAM_for_20FeatureSet.md](docs/BAM_for_20FeatureSet.md).
+
 ---
 
 ## Documentation
@@ -351,6 +426,11 @@ inf_01 | 1        | 0    | 0.234       | 1.567       | ...
 
 See **[DATA_FORMATS.md](docs/DATA_FORMATS.md)** for complete specifications.
 
+### Data File
+You can download the data file from here
+
+***Google Drive***:
+https://drive.google.com/drive/folders/1CYEV9lFP5RnKG09xeeNdJ-9NTVk1fp4b?usp=drive_link
 ---
 
 ## Configuration

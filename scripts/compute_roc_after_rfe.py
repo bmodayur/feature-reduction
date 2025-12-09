@@ -422,7 +422,7 @@ def compute_roc_interval(t, s):
 
     return tpr, fpr
 
-# %% jupyter={"outputs_hidden": true}
+# %%
 # FUNCTION: Run k-fold CV for a feature set
 def run_kfold_cv_for_feature_set(feature_list, feature_set_name, k_folds=10, apply_transform=None):
     """Run k-fold cross-validation for a specific feature set
@@ -613,6 +613,9 @@ print(f"\n{'='*80}")
 print("K-fold cross-validation complete for all feature sets")
 print(f"{'='*80}")
 
+
+# %%
+combined_test
 
 # %%
 # AGGREGATE RESULTS FROM ALL FOLDS
@@ -1977,5 +1980,8 @@ if RUN_COMPARISON_MODE:
     comparison_df = pd.DataFrame(comparison_data)
     comparison_df.to_csv('transformation_comparison_metrics.csv', index=False)
     print(f"\nComparison results saved to: transformation_comparison_metrics.csv")
+
+# %%
+f[f.risk>1].infant.unique().shape
 
 # %%

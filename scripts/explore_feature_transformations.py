@@ -312,6 +312,30 @@ def find_optimal_metrics(metrics_df):
     best_idx = metrics_df['youden_j'].idxmax()
     return metrics_df.loc[best_idx]
 
+
+def compute_cohens_d(group1, group2):
+    """
+    Compute Cohen's d effect size between two groups.
+
+    Cohen's d = (mean1 - mean2) / pooled_std
+
+    Interpretation:
+        |d| < 0.2: negligible
+        0.2 <= |d| < 0.5: small
+        0.5 <= |d| < 0.8: medium
+        |d| >= 0.8: large
+    """
+    n1, n2 = len(group1), len(group2)
+    var1, var2 = group1.var(), group2.var()
+
+    # Pooled standard deviation
+    pooled_std = np.sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2))
+
+    if pooled_std == 0:
+        return 0.0
+
+    return (group1.mean() - group2.mean()) / pooled_std
+
 # %%
 def run_transformation_experiment(transform_name, transform_func, use_absolute_threshold=False):
     """
@@ -376,6 +400,9 @@ def run_transformation_experiment(transform_name, transform_func, use_absolute_t
     normal_z = combined_test[combined_test.risk <= 1]['z']
     atrisk_z = combined_test[combined_test.risk > 1]['z']
 
+    # Compute Cohen's d (at-risk vs typical)
+    cohens_d = compute_cohens_d(atrisk_z, normal_z)
+
     results = {
         'transform': transform_name,
         'threshold_type': 'two-tailed' if use_absolute_threshold else 'one-tailed',
@@ -388,8 +415,11 @@ def run_transformation_experiment(transform_name, transform_func, use_absolute_t
         'ppv': optimal['ppv'],
         'npv': optimal['npv'],
         'normal_z_mean': normal_z.mean(),
+        'normal_z_std': normal_z.std(),
         'atrisk_z_mean': atrisk_z.mean(),
-        'z_separation': atrisk_z.mean() - normal_z.mean()
+        'atrisk_z_std': atrisk_z.std(),
+        'delta_mean': atrisk_z.mean() - normal_z.mean(),
+        'cohens_d': cohens_d
     }
 
     print(f"\nResults:")
@@ -398,7 +428,8 @@ def run_transformation_experiment(transform_name, transform_func, use_absolute_t
     print(f"  Sensitivity: {results['sensitivity']:.4f}")
     print(f"  Specificity: {results['specificity']:.4f}")
     print(f"  Youden's J: {results['youden_j']:.4f}")
-    print(f"  Z-score separation (at-risk - normal): {results['z_separation']:.4f}")
+    print(f"  Delta Mean (at-risk - typical): {results['delta_mean']:.4f}")
+    print(f"  Cohen's d: {results['cohens_d']:.4f}")
 
     return results, combined_test, final_metrics
 
@@ -406,9 +437,9 @@ def run_transformation_experiment(transform_name, transform_func, use_absolute_t
 # DEFINE ALL TRANSFORMATIONS TO TEST
 
 TRANSFORMATIONS = [
-    # Baseline
-    ('original_one_tailed', transform_original, False),
-    ('original_two_tailed', transform_original, True),
+    # Baseline (no transformation)
+    ('baseline', transform_original, False),
+    ('baseline_two_tailed', transform_original, True),
 
     # Absolute/squared deviations
     ('abs_deviation', transform_absolute_deviation, False),
@@ -449,18 +480,110 @@ for transform_name, transform_func, use_absolute in TRANSFORMATIONS:
 # %%
 # SUMMARY COMPARISON
 
-print("\n" + "="*80)
+print("\n" + "="*100)
 print("TRANSFORMATION COMPARISON SUMMARY")
-print("="*80 + "\n")
+print("="*100 + "\n")
 
 results_df = pd.DataFrame(all_results)
 results_df = results_df.sort_values('youden_j', ascending=False)
 
+# Create a nicely formatted summary table
 print("Ranked by Youden's J (Se + Sp - 1):")
-print("-" * 80)
-display_cols = ['transform', 'threshold_type', 'mean_auc', 'sensitivity',
-                'specificity', 'youden_j', 'optimal_threshold', 'z_separation']
-print(results_df[display_cols].to_string(index=False))
+print("-" * 100)
+
+# Format the key metrics table
+summary_cols = ['transform', 'mean_auc', 'sensitivity', 'specificity', 'youden_j', 'cohens_d', 'delta_mean']
+summary_df = results_df[summary_cols].copy()
+summary_df.columns = ['Transformation', 'AUC', 'Se', 'Sp', "Youden's J", "Cohen's d", 'Delta Mean']
+
+# Format numeric columns
+for col in ['AUC', 'Se', 'Sp', "Youden's J", "Cohen's d", 'Delta Mean']:
+    summary_df[col] = summary_df[col].apply(lambda x: f"{x:.3f}")
+
+print(summary_df.to_string(index=False))
+
+# Print interpretation guide
+print("\n" + "-" * 100)
+print("Interpretation Guide:")
+print("  - AUC: Area under ROC curve (0.5 = random, 1.0 = perfect)")
+print("  - Se/Sp: Sensitivity/Specificity at Youden-optimal threshold")
+print("  - Youden's J: Se + Sp - 1 (higher = better discrimination)")
+print("  - Cohen's d: Standardized effect size (|d| >= 0.8 is large)")
+print("  - Delta Mean: Mean z-score difference (at-risk - typical)")
+
+# Print extended table with Z-score statistics
+print("\n" + "="*100)
+print("Z-SCORE DISTRIBUTION STATISTICS")
+print("="*100 + "\n")
+
+zscore_cols = ['transform', 'normal_z_mean', 'normal_z_std', 'atrisk_z_mean', 'atrisk_z_std', 'delta_mean', 'cohens_d']
+zscore_df = results_df[zscore_cols].copy()
+zscore_df.columns = ['Transformation', 'Typical Mean', 'Typical SD', 'At-Risk Mean', 'At-Risk SD', 'Delta Mean', "Cohen's d"]
+
+for col in ['Typical Mean', 'Typical SD', 'At-Risk Mean', 'At-Risk SD', 'Delta Mean', "Cohen's d"]:
+    zscore_df[col] = zscore_df[col].apply(lambda x: f"{x:.3f}")
+
+print(zscore_df.to_string(index=False))
+
+# %%
+# FOCUSED COMPARISON: BASELINE vs INVERSE TRANSFORM
+
+print("\n" + "="*100)
+print("FOCUSED COMPARISON: BASELINE vs INVERSE TRANSFORM (1/(1+|x|))")
+print("="*100 + "\n")
+
+# Filter to just baseline and inverse_vel_acc
+focus_models = ['baseline', 'inverse_vel_acc']
+focus_df = results_df[results_df['transform'].isin(focus_models)].copy()
+
+# Sort so baseline comes first
+focus_df['sort_order'] = focus_df['transform'].map({'baseline': 0, 'inverse_vel_acc': 1})
+focus_df = focus_df.sort_values('sort_order')
+
+# Create focused table
+print(f"{'Model':<20} {'Mean(Typ)':>10} {'SD(Typ)':>10} {'Mean(AR)':>10} {'SD(AR)':>10} "
+      f"{'Delta':>10} {'Cohen d':>10} {'AUC':>8}")
+print("-" * 100)
+
+for _, row in focus_df.iterrows():
+    model_name = 'Baseline' if row['transform'] == 'baseline' else 'Inverse Transform'
+    print(f"{model_name:<20} {row['normal_z_mean']:>10.3f} {row['normal_z_std']:>10.3f} "
+          f"{row['atrisk_z_mean']:>10.3f} {row['atrisk_z_std']:>10.3f} "
+          f"{row['delta_mean']:>10.3f} {row['cohens_d']:>10.3f} {row['mean_auc']:>8.3f}")
+
+print("-" * 100)
+
+# Compute improvement row
+if len(focus_df) == 2:
+    base_row = focus_df[focus_df['transform'] == 'baseline'].iloc[0]
+    inv_row = focus_df[focus_df['transform'] == 'inverse_vel_acc'].iloc[0]
+
+    delta_delta = inv_row['delta_mean'] - base_row['delta_mean']
+    delta_cohens = inv_row['cohens_d'] - base_row['cohens_d']
+    delta_auc = inv_row['mean_auc'] - base_row['mean_auc']
+
+    print(f"{'Improvement':<20} {'--':>10} {'--':>10} {'--':>10} {'--':>10} "
+          f"{delta_delta:>+10.3f} {delta_cohens:>+10.3f} {delta_auc:>+8.3f}")
+    print("-" * 100)
+
+    print(f"\nKey Findings:")
+    print(f"  - Delta Mean separation improved by {abs(delta_delta):.3f} ({abs(delta_delta/base_row['delta_mean'])*100:.1f}% increase)")
+    print(f"  - Cohen's d effect size improved from {abs(base_row['cohens_d']):.3f} to {abs(inv_row['cohens_d']):.3f} (medium-large → large)")
+    print(f"  - AUC improved from {base_row['mean_auc']:.3f} to {inv_row['mean_auc']:.3f} (+{delta_auc:.3f})")
+
+    # Save focused comparison to CSV
+    focus_csv = focus_df[['transform', 'normal_z_mean', 'normal_z_std', 'atrisk_z_mean',
+                          'atrisk_z_std', 'delta_mean', 'cohens_d', 'mean_auc']].copy()
+    focus_csv.columns = ['Model', 'Mean_Typical', 'SD_Typical', 'Mean_AtRisk',
+                         'SD_AtRisk', 'Delta_Mean', 'Cohens_d', 'AUC']
+    focus_csv['Model'] = focus_csv['Model'].map({'baseline': 'Baseline', 'inverse_vel_acc': 'Inverse Transform'})
+
+    # Round to 3 decimal places
+    for col in ['Mean_Typical', 'SD_Typical', 'Mean_AtRisk', 'SD_AtRisk', 'Delta_Mean', 'Cohens_d', 'AUC']:
+        focus_csv[col] = focus_csv[col].round(3)
+
+    focus_csv.to_csv('baseline_vs_inverse_comparison.csv', index=False)
+    print(f"\nFocused comparison saved to: baseline_vs_inverse_comparison.csv")
 
 # %%
 # BEST TRANSFORMATION ANALYSIS
@@ -480,11 +603,12 @@ print(f"  Youden's J: {best['youden_j']:.4f}")
 print(f"  PPV: {best['ppv']:.4f}")
 print(f"  NPV: {best['npv']:.4f}")
 print(f"\nOptimal threshold: {best['optimal_threshold']:.4f}")
-print(f"Z-score separation: {best['z_separation']:.4f}")
+print(f"Delta Mean (z-score separation): {best['delta_mean']:.4f}")
+print(f"Cohen's d effect size: {best['cohens_d']:.4f}")
 
 # Compare to baseline
-baseline = results_df[results_df['transform'] == 'original_one_tailed'].iloc[0]
-print(f"\nImprovement over baseline (original_one_tailed):")
+baseline = results_df[results_df['transform'] == 'baseline'].iloc[0]
+print(f"\nImprovement over baseline (no transformation):")
 print(f"  Youden's J: {best['youden_j'] - baseline['youden_j']:+.4f}")
 print(f"  Sensitivity: {best['sensitivity'] - baseline['sensitivity']:+.4f}")
 print(f"  Specificity: {best['specificity'] - baseline['specificity']:+.4f}")
@@ -492,7 +616,16 @@ print(f"  Specificity: {best['specificity'] - baseline['specificity']:+.4f}")
 # %%
 # SAVE RESULTS
 
-results_df.to_csv('transformation_comparison_results.csv', index=False)
+# Round numeric columns to 3 decimal places for CSV
+csv_df = results_df.copy()
+numeric_cols = ['mean_auc', 'std_auc', 'optimal_threshold', 'sensitivity', 'specificity',
+                'youden_j', 'ppv', 'npv', 'normal_z_mean', 'normal_z_std',
+                'atrisk_z_mean', 'atrisk_z_std', 'delta_mean', 'cohens_d']
+for col in numeric_cols:
+    if col in csv_df.columns:
+        csv_df[col] = csv_df[col].round(3)
+
+csv_df.to_csv('transformation_comparison_results.csv', index=False)
 print(f"\nResults saved to: transformation_comparison_results.csv")
 
 # %%
