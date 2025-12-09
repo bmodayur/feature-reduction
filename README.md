@@ -38,18 +38,31 @@ Higher z-scores indicate greater deviation from typical development.
 
 ### Installation
 
-**Requirements**: Python 3.12 (NOT 3.13)
+**Requirements**: Python 3.10–3.12 (NOT 3.13)
 
 ```bash
-# Clone repository
 git clone <repository-url>
 cd early-markers
+```
 
-# Install dependencies with Poetry
+**Option A: Poetry (recommended for development)**
+```bash
 poetry install
-
-# Activate virtual environment
 poetry shell
+```
+
+**Option B: Conda + pip**
+```bash
+conda create -n early-markers python=3.12
+conda activate early-markers
+pip install -r requirements.txt
+```
+
+**Option C: venv + pip**
+```bash
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
 ### Basic Usage
@@ -106,114 +119,34 @@ Key notebooks in `early_markers/cribsy/notebooks/`:
 
 ## Two Pathways for Users
 
-This project offers two pathways depending on your goals:
-
-### 🔬 Pathway 1: Core API & Methodology
+### Pathway 1: Core API & Methodology
 
 For users who want to **understand the methodology** or **run their own analyses**:
 
-| Resource | Purpose |
-|----------|---------|
-| `early_markers/cribsy/notebooks/01-06` | Primary analysis notebooks |
-| `early_markers/cribsy/common/` | Core Python modules |
-| `docs/ARCHITECTURE.md` | System design |
-| `docs/API.md` | API reference |
-| `docs/WORKFLOWS.md` | Step-by-step guides |
+- Run notebooks 01 → 04 in `early_markers/cribsy/notebooks/`
+- See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for step-by-step guides
+- See [docs/API.md](docs/API.md) for API reference
 
-**Start here**: Run notebooks 01 → 04 in `early_markers/cribsy/notebooks/`
+### Pathway 2: Analysis Scripts & Results
 
-### 📊 Pathway 2: Analysis Results & Scripts
-
-For users who want to **understand the current model results** or **reproduce specific analyses**:
-
-| Resource | Purpose |
-|----------|---------|
-| `scripts/` | Analysis scripts (RFE, ROC, BAM) |
-| `docs/BAM_for_20FeatureSet.md` | Sample size analysis for 20-feature model |
-| `docs/RFE_METHODOLOGY.md` | Feature selection methodology |
-| `docs/FEATURE_TRANSFORMATION_METHODOLOGY.md` | 1/(1+\|x\|) transformation |
-| `docs/FEATURE_SET_PROVENANCE.md` | Tracking feature set origins |
-
-**Current Best Model**: 20-Feature Nov 21 RFE with transformation
-- AUC: 0.902
-- Sensitivity: 92.1%
-- Specificity: 77.5%
-- See: `scripts/compute_roc_after_rfe.py`
-
-#### Pathway 2 Analysis Workflow
-
-The analysis scripts follow a 3-step pipeline to develop and validate an early screener:
+For users who want to **reproduce specific analyses** or **understand current results**:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  Step 1: Feature Selection (RFE)                                        │
-│  run_rfe_with_age_forced.py → 20-feature set with forced age inclusion  │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Step 2: Screener Metrics (ROC)                                         │
-│  compute_roc_after_rfe.py → Se, Sp, AUC with k-fold CV                  │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Step 3: Sample Size Planning (BAM)                                     │
-│  run_bam_20feature_nov21.py → N infants needed for validation study     │
-└─────────────────────────────────────────────────────────────────────────┘
+RFE → ROC → BAM
+ │      │     └─ Sample size planning
+ │      └─ Screener metrics (Se, Sp, AUC)
+ └─ Feature selection (59 → 20 features)
 ```
 
-**Step 1: Feature Selection** (`scripts/run_rfe_with_age_forced.py`)
+**Current Best Model** (20-feature with transformation): AUC=0.902, Se=92.1%, Sp=77.5%
 
-Reduces 59 features to 20 using Enhanced Adaptive RFE:
-- Runs RFE on 58 movement features (excluding `age_in_weeks`)
-- Selects top 19 by Random Forest importance
-- Forces `age_in_weeks` as 20th feature for age-adjusted modeling
+| Script | Purpose | Docs |
+|--------|---------|------|
+| `scripts/run_rfe_with_age_forced.py` | Feature selection | [RFE_METHODOLOGY.md](docs/RFE_METHODOLOGY.md) |
+| `scripts/compute_roc_after_rfe.py` | ROC metrics | [FEATURE_TRANSFORMATION_METHODOLOGY.md](docs/FEATURE_TRANSFORMATION_METHODOLOGY.md) |
+| `scripts/run_bam_20feature_nov21.py` | Sample size | [BAM_for_20FeatureSet.md](docs/BAM_for_20FeatureSet.md) |
 
-```bash
-# Run RFE (takes 30-60 minutes)
-PYTHONPATH=. python scripts/run_rfe_with_age_forced.py
-```
-
-**Output**: Feature list saved to `data/json/`, model saved to `data/pkl/`
-
-**Step 2: Screener Metrics** (`scripts/compute_roc_after_rfe.py`)
-
-Evaluates early screener performance using 10-fold cross-validation:
-- Computes Bayesian surprise z-scores for each infant
-- Calculates ROC metrics (sensitivity, specificity, AUC)
-- Applies 1/(1+|x|) transformation for bidirectional anomaly detection
-- Compares multiple feature sets (15, 18, 19, 20 features)
-
-```bash
-# Run ROC analysis (runs as Jupyter script or standalone)
-PYTHONPATH=. python scripts/compute_roc_after_rfe.py
-```
-
-**Output**:
-- `feature_set_comparison_metrics.csv` - Metrics for all feature sets
-- Console output with confusion matrices and CIs
-
-**Step 3: Sample Size Planning** (`scripts/run_bam_20feature_nov21.py`)
-
-Determines sample size for Phase 2 validation study:
-- Uses pilot metrics (Se=92.1%, Sp=77.5%) as priors
-- Calculates N for target CI width (±10%) and assurance (95%)
-- Runs sensitivity analysis across precision levels
-
-```bash
-# Run BAM sample size calculation
-PYTHONPATH=. python scripts/run_bam_20feature_nov21.py
-```
-
-**Output**: `data/json/bam_sample_size_20feature_nov21.json`
-
-#### Key Analysis Results
-
-| Metric | Value | Description |
-|--------|-------|-------------|
-| **Features** | 20 | 19 movement + age_in_weeks |
-| **AUC** | 0.902 | Area under ROC curve |
-| **Sensitivity** | 92.1% | True positive rate (at-risk detection) |
-| **Specificity** | 77.5% | True negative rate (typical identification) |
-| **Sample Size** | N=100 | For CI width 0.20, assurance 95% |
-| **Recommendation** | N=150-200 | Conservative estimate with buffers |
-
-For detailed BAM analysis including enriched sampling design, see [docs/BAM_for_20FeatureSet.md](docs/BAM_for_20FeatureSet.md).
+See [docs/ANALYSIS_WORKFLOW.md](docs/ANALYSIS_WORKFLOW.md) for detailed step-by-step instructions.
 
 ---
 
@@ -427,7 +360,7 @@ inf_01 | 1        | 0    | 0.234       | 1.567       | ...
 See **[DATA_FORMATS.md](docs/DATA_FORMATS.md)** for complete specifications.
 
 ### Data File
-You can download the data file from here
+You can download the data file from the link below and place it in data/pkl
 
 ***Google Drive***:
 https://drive.google.com/drive/folders/1CYEV9lFP5RnKG09xeeNdJ-9NTVk1fp4b?usp=drive_link
