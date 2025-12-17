@@ -51,7 +51,7 @@ def create_train_test(features, samples, age_threshold):
 output_dir = '/BigData/EMCP_BACKUP/output/'
 FEATURE_SIZE = 20 # number of features to use through RFE (recursive feature elimination)
 AGE_THRESHOLD = 10 #age threshold in weeks
-FEATURES_FILE = 'features_merged_20251121_091511.pkl'
+FEATURES_FILE = '/BigData/caffe2-pose-estimation-master/surprise_data/interim/features_merged_20251215_212833.pkl'
 # two age groups, below is age_bracket 0, above is age_bracket 1
 
 # if age is a feature, we don't need age brackets to divide the dataset by
@@ -422,7 +422,7 @@ def compute_roc_interval(t, s):
 
     return tpr, fpr
 
-# %%
+# %% jupyter={"outputs_hidden": true}
 # FUNCTION: Run k-fold CV for a feature set
 def run_kfold_cv_for_feature_set(feature_list, feature_set_name, k_folds=10, apply_transform=None):
     """Run k-fold cross-validation for a specific feature set
@@ -1775,7 +1775,7 @@ print("Use the generated plots to explore the Se/Sp trade-off and select your pr
 # INTERACTIVE THRESHOLD EXPLORATION
 # Uncomment and modify the threshold below to explore metrics for any z-score threshold
 
-custom_threshold=-0.234
+custom_threshold=-0.2463
 print("EXAMPLE: Metrics for different thresholds")
 print(f"(Model: {selected_model})")
 print("-" * 80)
