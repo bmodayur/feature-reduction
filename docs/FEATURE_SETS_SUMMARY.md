@@ -11,7 +11,8 @@
 ## ⚠️ UPDATE HISTORY
 
 **November 2025**: Corrected threshold from -0.4763 to optimal threshold from k-fold CV
-**December 2025**: Added 1/(1+|x|) transformation on vel/acc features - AUC improved from 0.85 to **0.90**
+**December 2025**: Added 1/(1+|x|) transformation on vel/acc features - AUC improved from 0.79 to **0.88**
+**December 2025**: Fixed `compute_roc()` bug that inflated AUC values; all metrics now correct
 **Verification**: All metrics from `scripts/compute_roc_after_rfe.py` with `RUN_COMPARISON_MODE=True` ✅
 
 ---
@@ -22,14 +23,14 @@
 
 | Feature Set | Mean AUC | Sensitivity | Specificity | Youden's J | Use Case | Status |
 |-------------|----------|-------------|-------------|-----------|----------|--------|
-| **20-Feature NEW** ⭐ | **0.9018** | **92.1%** | **77.5%** | **0.6964** | **BEST OVERALL** | **RECOMMENDED** |
-| **20-Feature LEGACY** | 0.8861 | 85.7% | 76.5% | 0.6221 | Discrimination | Reference only |
-| **15-Feature NEW** | 0.8596 | 85.7% | 70.0% | 0.5571 | Simplified | RECOMMENDED |
-| **15-Feature LEGACY** | 0.8866 | 78.6% | 79.0% | 0.5757 | Balanced | Reference only |
-| **18-Feature LEGACY** | 0.8849 | 84.3% | 72.0% | 0.5629 | Balanced | Reference only |
-| **19-Feature NEW** | 0.8216 | 78.6% | 66.5% | 0.4507 | - | Lower priority |
+| **20-Feature NEW** ⭐ | **0.880** | **92.1%** | **77.5%** | **0.6964** | **BEST OVERALL** | **RECOMMENDED** |
+| **20-Feature LEGACY** | 0.853 | 85.7% | 76.5% | 0.6221 | Discrimination | Reference only |
+| **15-Feature NEW** | 0.821 | 85.7% | 70.0% | 0.5571 | Simplified | RECOMMENDED |
+| **15-Feature LEGACY** | 0.856 | 78.6% | 79.0% | 0.5757 | Balanced | Reference only |
+| **18-Feature LEGACY** | 0.848 | 84.3% | 72.0% | 0.5629 | Balanced | Reference only |
+| **19-Feature NEW** | 0.765 | 78.6% | 66.5% | 0.4507 | - | Lower priority |
 
-⭐ **December 2025**: 20-Feature NEW with transformation achieves best AUC (0.90) and Youden's J (0.70).
+⭐ **December 2025**: 20-Feature NEW with transformation achieves best AUC (0.88) and Youden's J (0.70).
 
 ---
 
@@ -38,7 +39,7 @@
 ### NEW Feature Sets (Recommended for clinical use)
 
 #### 20-Feature NEW ⭐ **BEST OVERALL (with transformation)**
-- **Mean AUC**: **0.9018** ✅ **EXCELLENT**
+- **Mean AUC**: **0.880** ✅ **GOOD**
 - **Sensitivity**: 92.1% ✅ **EXCELLENT**
 - **Specificity**: 77.5% ✅ **GOOD**
 - **Accuracy**: 83.5%
@@ -46,13 +47,13 @@
 - **Optimal Threshold**: -0.2303
 - **Transformation**: 1/(1+|x|) applied to 11 vel/acc features
 - **Clinical Interpretation**:
-  - Best overall discrimination (AUC 0.90)
+  - Best overall discrimination (AUC 0.88)
   - Excellent sensitivity for screening (92.1%)
   - Good specificity reduces false positives vs baseline (77.5% vs 61%)
   - **Recommended for Phase II validation**
 
 #### 15-Feature NEW (Simplified variant, with transformation)
-- **Mean AUC**: 0.8596
+- **Mean AUC**: 0.821
 - **Sensitivity**: 85.7%
 - **Specificity**: 70.0%
 - **Youden's J**: 0.5571
@@ -60,11 +61,11 @@
 - **Transformation**: 1/(1+|x|) applied to vel/acc features
 - **Clinical Interpretation**:
   - Good alternative with fewer features
-  - Slightly lower performance than 20-feature (AUC 0.86 vs 0.90)
+  - Slightly lower performance than 20-feature (AUC 0.82 vs 0.88)
   - Acceptable for settings with limited computational resources
 
 #### 19-Feature NEW (with transformation)
-- **Mean AUC**: 0.8216
+- **Mean AUC**: 0.765
 - **Sensitivity**: 78.6%
 - **Specificity**: 66.5%
 - **Youden's J**: 0.4507
@@ -81,15 +82,15 @@
 **Note**: LEGACY features have known issues (60 FPS frame rate error, coordinate rotation) but are included for comparison. Metrics below include the 1/(1+|x|) transformation.
 
 #### 20-Feature LEGACY (with transformation)
-- **Mean AUC**: 0.8861
+- **Mean AUC**: 0.853
 - **Sensitivity**: 85.7%
 - **Specificity**: 76.5%
 - **Youden's J**: 0.6221
 - **Optimal Threshold**: -0.3955
-- **Clinical Note**: Good performance despite bugs; 20-Feature NEW with transformation outperforms (AUC 0.90 vs 0.89)
+- **Clinical Note**: Good performance despite bugs; 20-Feature NEW with transformation outperforms (AUC 0.88 vs 0.85)
 
 #### 15-Feature LEGACY (with transformation)
-- **Mean AUC**: 0.8866
+- **Mean AUC**: 0.856
 - **Sensitivity**: 78.6%
 - **Specificity**: 79.0%
 - **Youden's J**: 0.5757
@@ -97,7 +98,7 @@
 - **Note**: Highest specificity among LEGACY models
 
 #### 18-Feature LEGACY (with transformation)
-- **Mean AUC**: 0.8849
+- **Mean AUC**: 0.848
 - **Sensitivity**: 84.3%
 - **Specificity**: 72.0%
 - **Youden's J**: 0.5629
@@ -162,20 +163,20 @@
 ## Key Findings
 
 ### 1. NEW vs LEGACY Performance
-- **20-Feature NEW slightly lower AUC than LEGACY** (0.7800 vs 0.7884): ~84 basis points difference
-- **But 20-Feature NEW has much higher sensitivity** (92.86% vs 85.71%): +7.15 percentage points
-- **Trade-off**: NEW prioritizes screening sensitivity; LEGACY prioritizes overall discrimination
+- **20-Feature NEW higher AUC than LEGACY** (0.880 vs 0.853): +2.7 percentage points
+- **20-Feature NEW has much higher sensitivity** (92.1% vs 85.7%): +6.4 percentage points
+- **Trade-off**: NEW prioritizes screening sensitivity; LEGACY has slightly higher specificity
 - **Bug Impact**: Despite bugs, LEGACY features perform competitively, suggesting bugs may not significantly impact this particular feature set on validation data
 
 ### 2. NEW Feature Set Quality
 - All NEW models use corrected 60 FPS frame rate normalization and coordinate rotation fixes
-- 15-Feature NEW performs well (AUC 0.7379) as simplified variant
-- 19-Feature NEW is problematic (AUC 0.6330) — suggests feature selection optimization issue
+- 15-Feature NEW performs well (AUC 0.821) as simplified variant
+- 19-Feature NEW is problematic (AUC 0.765) — suggests feature selection optimization issue
 - **Recommendation**: Use 20-Feature NEW for screening, 15-Feature NEW as alternative
 
 ### 3. LEGACY Feature Set Performance
-- 20-Feature LEGACY is best LEGACY model (AUC 0.7884)
-- 15-Feature and 18-Feature LEGACY perform equivalently (~0.761 AUC)
+- 20-Feature LEGACY is best LEGACY model (AUC 0.853)
+- 15-Feature and 18-Feature LEGACY perform similarly (~0.85 AUC)
 - Adding Knee features to 15-Feature didn't improve LEGACY models
 
 ### 4. Clinical Use Cases
@@ -188,12 +189,12 @@
 
 #### For Balanced Discrimination (Moderate Sensitivity/Specificity)
 - **Best Choice**: 20-Feature LEGACY or 15-Feature LEGACY
-- **LEGACY 20**: AUC 0.7884, Sensitivity 85.71%, Specificity 70.50%
+- **LEGACY 20**: AUC 0.853, Sensitivity 85.71%, Specificity 76.5%
 - **Use**: Diagnostic confirmation or research studies
 
 #### For Simplified Model (Fewest Features)
 - **Best Choice**: 15-Feature NEW
-- **AUC**: 0.7379, comparable to LEGACY 15-feature (0.7614)
+- **AUC**: 0.821, comparable to LEGACY 15-feature (0.856)
 - **Use**: Field deployment with limited computational resources
 
 ---
@@ -227,12 +228,12 @@ The 20-Feature NEW model performance is **significantly enhanced** by applying a
 
 | Metric | Without Transform | With Transform | Improvement |
 |--------|-------------------|----------------|-------------|
-| **Mean AUC** | 0.8485 | **0.9018** | **+0.0532 (+6.3%)** |
+| **Mean AUC** | 0.794 | **0.880** | **+0.087 (+10.9%)** |
 | **Sensitivity** | 92.9% | 92.1% | -0.7% |
 | **Specificity** | 61.0% | **77.5%** | **+16.5%** |
 | **Youden's J** | 0.5386 | **0.6964** | **+0.1579 (+29%)** |
 | **Optimal Threshold** | - | -0.2303 | - |
-| **Z-Separation** | 0.969 | **2.531** | **+1.56 (2.6×)** |
+| **Z-Separation** | 0.969 | **2.396** | **+1.43 (2.5×)** |
 
 ### Effect Size Analysis
 
@@ -304,11 +305,11 @@ The transformed model detects BOTH reduced movement (hypokinesia) AND excessive 
 
 ### Alternative Model
 - **Use**: 15-Feature NEW
-- **Rationale**: Simplified version, good performance (AUC 0.7379), reduces computational requirements
-- **Trade-off**: Lower sensitivity (78.57%) vs 20-feature, but may be acceptable depending on clinical requirements
+- **Rationale**: Simplified version, good performance (AUC 0.821), reduces computational requirements
+- **Trade-off**: Lower sensitivity (85.7%) vs 20-feature (92.1%), but may be acceptable depending on clinical requirements
 
 ### Models to Avoid
-- **19-Feature NEW**: Poor AUC (0.6330), high variance, unexplained feature noise
+- **19-Feature NEW**: Lower AUC (0.765), high variance, unexplained feature noise
 - **LEGACY Sets**: Known bugs in feature extraction (60 FPS, coordinate rotation); use only for comparison
 
 ---
@@ -393,5 +394,5 @@ For **20-Feature NEW** model:
 
 ---
 
-**Last Updated**: December 3, 2025 (Added feature transformation methodology)
+**Last Updated**: December 18, 2025 (Fixed AUC values after compute_roc bug fix)
 **Status**: Complete — All 6 feature sets analyzed and verified against compute_roc_after_rfe.py

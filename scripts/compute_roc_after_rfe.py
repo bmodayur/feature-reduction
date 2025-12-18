@@ -51,7 +51,7 @@ def create_train_test(features, samples, age_threshold):
 output_dir = '/BigData/EMCP_BACKUP/output/'
 FEATURE_SIZE = 20 # number of features to use through RFE (recursive feature elimination)
 AGE_THRESHOLD = 10 #age threshold in weeks
-FEATURES_FILE = '/BigData/caffe2-pose-estimation-master/surprise_data/interim/features_merged_20251215_212833.pkl'
+FEATURES_FILE = '/BigData/caffe2-pose-estimation-master/surprise_data/interim/features_merged_20251121_091511.pkl'
 # two age groups, below is age_bracket 0, above is age_bracket 1
 
 # if age is a feature, we don't need age brackets to divide the dataset by
@@ -376,19 +376,19 @@ def compute_roc(t, s):
     tpr = []
     fpr = []
     for z_threshold in t:
-        tp = s[(s.risk>lowrisk_category)].shape[0]
+        tp = s[(s.risk>lowrisk_category) & (s.z < z_threshold)].shape[0]
 
-        fp = s[(s.risk<=lowrisk_category)&(s.z < z_threshold)].shape[0]
+        fp = s[(s.risk<=lowrisk_category) & (s.z < z_threshold)].shape[0]
 
-        fn = s[(s.risk>lowrisk_category)&(s.z >= z_threshold)].shape[0]
+        fn = s[(s.risk>lowrisk_category) & (s.z >= z_threshold)].shape[0]
 
-        tn = s[(s.risk<=lowrisk_category)&(s.z > z_threshold)].shape[0]
+        tn = s[(s.risk<=lowrisk_category) & (s.z >= z_threshold)].shape[0]
 
-        tpr_val = tp / (tp+fn) #sens
+        tpr_val = tp / (tp + fn) if (tp + fn) > 0 else 0  # sens
         tpr.append(tpr_val)
 
-        spec = tn / (tn + fp)
-        fpr_val = 1-spec
+        spec = tn / (tn + fp) if (tn + fp) > 0 else 0
+        fpr_val = 1 - spec
         fpr.append(fpr_val)
 
     return tpr, fpr
@@ -405,19 +405,21 @@ def compute_roc_interval(t, s):
     fpr = []
     for z_threshold in t:
         z_threshold_abs = abs(z_threshold)
-        tp = s[(s.risk>lowrisk_category)].shape[0]
+        # Predicted positive: abs(z) > threshold (outside normal band)
+        # Predicted negative: abs(z) <= threshold (within normal band)
+        tp = s[(s.risk>lowrisk_category) & (abs(s.z) > z_threshold_abs)].shape[0]
 
-        fp = s[(s.risk<=lowrisk_category)&( not(abs(s.z) <= z_threshold_abs) )].shape[0]
+        fp = s[(s.risk<=lowrisk_category) & (abs(s.z) > z_threshold_abs)].shape[0]
 
-        fn = s[(s.risk>lowrisk_category)&(abs(s.z) < z_threshold_abs )].shape[0]
+        fn = s[(s.risk>lowrisk_category) & (abs(s.z) <= z_threshold_abs)].shape[0]
 
-        tn = s[(s.risk<=lowrisk_category)& (abs(s.z)<=z_threshold_abs)].shape[0]
+        tn = s[(s.risk<=lowrisk_category) & (abs(s.z) <= z_threshold_abs)].shape[0]
 
-        tpr_val = tp / (tp+fn) #sens
+        tpr_val = tp / (tp + fn) if (tp + fn) > 0 else 0  # sens
         tpr.append(tpr_val)
 
-        spec = tn / (tn + fp)
-        fpr_val = 1-spec
+        spec = tn / (tn + fp) if (tn + fp) > 0 else 0
+        fpr_val = 1 - spec
         fpr.append(fpr_val)
 
     return tpr, fpr

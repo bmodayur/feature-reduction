@@ -1,7 +1,7 @@
 # Early Markers - Bayesian Surprise Analysis for Infant Developmental Risks
 
 [![Python Version](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-complete-brightgreen.svg)](docs/)
 
 **A research codebase for analyzing early infant movement markers using Bayesian statistical methods and machine learning techniques.**
@@ -31,6 +31,16 @@ Early Markers implements a Bayesian surprise analysis framework to identify deve
 4. Compute p-value: `p_i = 2 × SF(|z_i|)`
 
 Higher z-scores indicate greater deviation from typical development.
+
+---
+
+## License & Patents
+
+This repository is licensed under the **Apache License 2.0** - you are free to use, modify, and distribute this code for both research and clinical applications. See the [LICENSE](LICENSE) file for details.
+
+**Patent Notice**: While Cribsy's platform is protected by [US Patent No. 12,272,054](https://patents.google.com/patent/US12272054), this specific feature reduction technique and the identified feature set for infant movement anomaly detection are provided as open source under Apache 2.0. Healthcare providers, researchers, and developers are encouraged to use this methodology to improve early detection of developmental risks in infants.
+
+**Intended Use**: This code is suitable for research purposes and clinical implementation. We encourage its use in any setting where early identification of at-risk infants can lead to better outcomes.
 
 ---
 
@@ -664,7 +674,7 @@ All code must include:
 
 ## License
 
-Proprietary - All rights reserved.
+This project is licensed under the Apache License 2.0. See the [License & Patents](#license--patents) section above for complete information including patent notice.
 
 ---
 
